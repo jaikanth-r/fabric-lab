@@ -3,28 +3,20 @@ import path from 'path';
 import fs from 'fs';
 
 export async function getBlockchainContract() {
-    const ccpPath = path.resolve(process.cwd(), '..', 'fabric-samples', 'test-network', 'organizations', 'peerOrganizations', 'org1.example.com', 'connection-org1.json');
+    const fabricSamplesPath = process.env.FABRIC_SAMPLES_PATH ||
+        path.resolve(process.cwd(), '..', 'fabric-samples');
+
+    const ccpPath = path.resolve(fabricSamplesPath, 'test-network', 'organizations',
+        'peerOrganizations', 'org1.example.com', 'connection-org1.json');
     const ccp = JSON.parse(fs.readFileSync(ccpPath, 'utf8'));
 
     const walletPath = path.join(process.cwd(), 'wallet');
-    const certPath = path.join(walletPath, 'signcerts');
-    const keyPath = path.join(walletPath, 'keystore');
+    const wallet = await Wallets.newFileSystemWallet(walletPath);
 
-    // Automatically find the first file in the directory
-    const certFile = fs.readdirSync(certPath).find(f => !f.startsWith('.'));
-    const keyFile = fs.readdirSync(keyPath).find(f => !f.startsWith('.'));
-
-    if (!certFile || !keyFile) throw new Error("CRITICAL: IDENTITY_FILES_NOT_FOUND_IN_WALLET");
-
-    const certificate = fs.readFileSync(path.join(certPath, certFile)).toString();
-    const privateKey = fs.readFileSync(path.join(keyPath, keyFile)).toString();
-
-    const wallet = await Wallets.newInMemoryWallet();
-    await wallet.put('appUser', {
-        credentials: { certificate, privateKey },
-        mspId: 'Org1MSP',
-        type: 'X.509',
-    });
+    const identity = await wallet.get('appUser');
+    if (!identity) {
+        throw new Error("CRITICAL: IDENTITY_NOT_FOUND_IN_WALLET. Run 'npm run enroll' first.");
+    }
 
     const gateway = new Gateway();
     await gateway.connect(ccp, {

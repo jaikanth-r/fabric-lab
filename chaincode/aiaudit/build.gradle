@@ -1,0 +1,23 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group 'org.hyperledger.fabric.samples'
+version '1.0-SNAPSHOT'
+
+repositories {
+    flatDir {
+        dirs 'lib'
+    }
+}
+
+dependencies {
+    // This tells Gradle to include every JAR we just stole
+    implementation fileTree(dir: 'lib', include: ['*.jar'])
+}
+
+application {
+    mainClass = 'org.hyperledger.fabric.samples.aiaudit.AIContract'
+    applicationName = 'aiaudit'
+}

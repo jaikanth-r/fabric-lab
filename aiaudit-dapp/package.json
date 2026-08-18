@@ -3,13 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "enroll": "FABRIC_SAMPLES_PATH=${FABRIC_SAMPLES_PATH:-$HOME/fabric-samples} node scripts/enrollUser.js",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
-    "fabric-ca-client": "^2.2.20",
     "fabric-network": "^2.2.20",
     "fabric-protos": "^2.2.20",
     "next": "16.2.2",

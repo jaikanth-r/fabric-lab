@@ -2,47 +2,42 @@
 import { getBlockchainContract } from '@/lib/fabric';
 
 export async function getModelHistory(modelId: string) {
-    console.log(`>>> [WEB3_SYSTEM] AUDIT_REQUEST: ${modelId}`);
     try {
         const { contract, gateway } = await getBlockchainContract();
-        
-        // Use evaluateTransaction to query the ledger without creating a new block
         const resultBuffer = await contract.evaluateTransaction('AI-Audit:getModelHistory', modelId);
-        const resultString = resultBuffer.toString();
-        
         await gateway.disconnect();
 
-        // Robust Parser for Fabric History Strings
-        let cleaned = resultString
-            .replace(/(TxId|Value|Timestamp|IsDelete):/g, '"$1":')
-            .replace(/Timestamp":\s*(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})/g, 'Timestamp": "$1"')
-            .replace(/Value":\s*({.*?})/g, 'Value": $1');
-
-        if (cleaned.startsWith('[TxId')) {
-            cleaned = cleaned.replace('[TxId', '[{"TxId"');
+        const resultString = resultBuffer.toString();
+        if (!resultString || resultString === '[]') {
+            return { success: true, data: [] };
         }
 
-        let finalData = [];
-        try {
-            finalData = JSON.parse(cleaned);
-        } catch (e) {
-            // Fallback: Manual regex match if JSON.parse fails
-            const matches = resultString.match(/TxId:.*?, Value: {.*?}/g);
-            if (matches) {
-                finalData = matches.map(m => ({
-                    TxId: m.match(/TxId: (.*?),/)?.[1],
-                    Value: JSON.parse(m.match(/Value: ({.*?})/)?.[1] || '{}')
-                }));
-            }
-        }
+        // Parse "[TxId: xxx, Value: {...}]" style history string into objects
+        const entries = resultString.slice(1, -1).split(/(?<=}), (?=TxId:)/);
+        const data = entries.map(entry => {
+            const txMatch = entry.match(/TxId:\s*([a-f0-9]+)/);
+            const valueMatch = entry.match(/Value:\s*({.*})/s);
+            return {
+                TxId: txMatch?.[1] || '',
+                Value: valueMatch ? JSON.parse(valueMatch[1]) : {}
+            };
+        });
 
-        return { 
-            success: true, 
-            data: Array.isArray(finalData) ? finalData : [finalData] 
-        };
-
+        return { success: true, data };
     } catch (error: any) {
-        console.error(">>> [WEB3_SYSTEM] QUERY_EMPTY_OR_FAILED:", error.message);
+        console.error(">>> [WEB3_SYSTEM] QUERY_FAILED:", error.message);
         return { success: false, error: error.message, data: [] };
+    }
+}
+
+export async function createAuditRecord(modelId: string, hashValue: string, owner: string) {
+    try {
+        const { contract, gateway } = await getBlockchainContract();
+        await contract.submitTransaction('AI-Audit:auditModel', modelId, hashValue, owner);
+        await gateway.disconnect();
+        return { success: true };
+    } catch (error: any) {
+        console.error(">>> [WEB3_SYSTEM] WRITE_FAILED:", error.message);
+        return { success: false, error: error.message };
     }
 }
