@@ -18,4 +18,5 @@ connection-*.json
 # API & Environment
 .env
 .env.local
-dist/
+dist/node_modules/
+.next/
