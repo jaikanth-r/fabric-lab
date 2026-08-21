@@ -41,6 +41,7 @@ graph LR
 - **Blockchain:** Hyperledger Fabric v2.5, Docker
 - **Chaincode:** Java (Gradle)
 - **SDK:** fabric-network (Node.js Gateway API)
+<img width="1470" height="956" alt="snapshot1" src="https://github.com/user-attachments/assets/c3d7d31e-3c33-435c-8bca-536591ee564d" />
 
 ## Prerequisites
 
