@@ -2,6 +2,20 @@
 import { useState } from 'react';
 import { getModelHistory, createAuditRecord } from './actions';
 
+function generateHash(seed: string) {
+  // Simple deterministic-looking hex hash for demo purposes (client-side, no crypto import needed)
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < seed.length; i++) {
+    const ch = seed.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = (h1 ^ (h1 >>> 16)) >>> 0;
+  h2 = (h2 ^ (h2 >>> 16)) >>> 0;
+  return (h1.toString(16).padStart(8, '0') + h2.toString(16).padStart(8, '0') +
+    Date.now().toString(16)).padEnd(64, '0').slice(0, 64);
+}
+
 export default function Home() {
   const [modelId, setModelId] = useState('');
   const [history, setHistory] = useState<any[]>([]);
@@ -14,28 +28,36 @@ export default function Home() {
   const runAudit = async (idToQuery?: string) => {
     const targetId = idToQuery || modelId;
     if (!targetId) return;
-
     setLoading(true);
     const result = await getModelHistory(targetId);
     setHistory(result.success ? result.data : []);
     setLoading(false);
   };
 
-  const registerModel = async () => {
-    if (!modelId || !regHash || !regOwner) {
+  const registerModel = async (idOverride?: string, hashOverride?: string, ownerOverride?: string) => {
+    const id = idOverride || modelId;
+    const hash = hashOverride || regHash;
+    const owner = ownerOverride || regOwner;
+    if (!id || !hash || !owner) {
       setRegMessage('Model ID, hash, and owner are all required.');
       return;
     }
     setRegistering(true);
     setRegMessage('');
-    const result = await createAuditRecord(modelId, regHash, regOwner);
+    const result = await createAuditRecord(id, hash, owner);
     setRegistering(false);
     if (result.success) {
-      setRegMessage('Recorded on ledger.');
-      runAudit(modelId);
+      setRegMessage(`${id} registered successfully.`);
+      setModelId(id);
+      runAudit(id);
     } else {
       setRegMessage(`Failed: ${result.error}`);
     }
+  };
+
+  const registerSample = (id: string) => {
+    const hash = generateHash(id + Date.now());
+    registerModel(id, hash, 'JaiOrg');
   };
 
   return (
@@ -67,19 +89,22 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="flex gap-3 mb-12 justify-center">
+        <div className="flex gap-3 mb-2 justify-center">
           {['MODEL000', 'MODEL001', 'MODEL002'].map((id) => (
             <button
               key={id}
-              onClick={() => { setModelId(id); runAudit(id); }}
-              className="text-[9px] text-white/30 hover:text-emerald-400 border border-white/5 hover:border-emerald-500/30 px-4 py-1.5 rounded-full transition-all uppercase tracking-[0.2em] font-mono bg-white/[0.01]"
+              onClick={() => registerSample(id)}
+              disabled={registering}
+              className="text-[9px] text-white/30 hover:text-emerald-400 border border-white/5 hover:border-emerald-500/30 px-4 py-1.5 rounded-full transition-all uppercase tracking-[0.2em] font-mono bg-white/[0.01] disabled:opacity-40"
             >
-              Sample: {id}
+              Register: {id}
             </button>
           ))}
         </div>
+        <p className="text-center text-[9px] text-gray-600 font-mono mb-12">
+          Generates a hash and writes it to the ledger, then queries it back.
+        </p>
 
-        {/* Register Model Panel */}
         <div className="mb-12 bg-white/[0.02] border border-white/5 rounded-3xl p-8">
           <h2 className="text-[10px] uppercase tracking-widest text-gray-500 mb-4 font-semibold">Register Model Hash on Ledger</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
@@ -98,7 +123,7 @@ export default function Home() {
               className="bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 outline-none font-mono text-sm placeholder:text-white/20"
             />
             <button
-              onClick={registerModel}
+              onClick={() => registerModel()}
               disabled={registering}
               className="bg-emerald-500 text-black px-6 py-3 rounded-xl font-bold uppercase tracking-tighter hover:bg-emerald-400 transition-colors disabled:bg-gray-800 disabled:text-gray-500"
             >

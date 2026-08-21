@@ -13,16 +13,18 @@ async function main() {
   const identityPath = path.resolve(fabricSamplesPath, 'test-network', 'organizations',
     'peerOrganizations', 'org1.example.com', 'users', 'User1@org1.example.com', 'msp');
 
-  const certPath = path.join(identityPath, 'signcerts', 'cert.pem');
+  const certDir = path.join(identityPath, 'signcerts');
   const keyDir = path.join(identityPath, 'keystore');
+
+  const certFile = fs.readdirSync(certDir).find(f => !f.startsWith('.'));
   const keyFile = fs.readdirSync(keyDir).find(f => !f.startsWith('.'));
 
-  if (!fs.existsSync(certPath) || !keyFile) {
+  if (!certFile || !keyFile) {
     throw new Error(`Could not find User1 identity files under ${identityPath}. ` +
       `Make sure the test-network is up and FABRIC_SAMPLES_PATH points to the right fabric-samples clone.`);
   }
 
-  const certificate = fs.readFileSync(certPath).toString();
+  const certificate = fs.readFileSync(path.join(certDir, certFile)).toString();
   const privateKey = fs.readFileSync(path.join(keyDir, keyFile)).toString();
 
   const walletPath = path.join(process.cwd(), 'wallet');

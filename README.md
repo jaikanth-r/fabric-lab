@@ -3,25 +3,31 @@
 A decentralized audit log for AI models built on **Hyperledger Fabric**. AI-Audit records the cryptographic hash of a model on a permissioned blockchain ledger at registration time, so any party can later verify the model has not been tampered with by comparing its current hash against the immutable on-chain history.
 
 ## Architecture
-┌─────────────────────┐ ┌──────────────────────────────┐
-│ aiaudit-dapp │ gRPC │ Hyperledger Fabric Network │
-│ (Next.js frontend) │◄───────►│ │
-│ │ Gateway │ ┌──────────┐ ┌──────────┐ │
-│ - Register model │ SDK │ │ peer0.org1│ │ peer0.org2│ │
-│ - Query history │ │ └────┬─────┘ └────┬─────┘ │
-└─────────────────────┘ │ │ │ │
-│ └──────┬───────┘ │
-│ ┌──────▼──────┐ │
-│ │ orderer │ │
-│ └──────┬──────┘ │
-│ ┌──────▼──────┐ │
-│ │ mychannel │ │
-│ │ (ledger) │ │
-│ └─────────────┘ │
-└──────────────────────────────┘
-aiaudit chaincode (Java)
 
+```mermaid
+graph LR
+    subgraph Frontend
+        A[aiaudit-dapp<br/>Next.js frontend]
+    end
 
+    subgraph Fabric Network
+        B[peer0.org1]
+        C[peer0.org2]
+        D[orderer]
+        E[(mychannel<br/>ledger)]
+        F[aiaudit chaincode<br/>Java]
+    end
+
+    A -- "Gateway SDK<br/>submit / evaluate" --> B
+    A -- "Gateway SDK<br/>submit / evaluate" --> C
+    B --> D
+    C --> D
+    D --> E
+    E --- F
+
+    A -.->|Register model| A
+    A -.->|Query history| A
+```
 
 - **Network**: Two-organization Fabric network (Org1, Org2), one Raft orderer, channel `mychannel`. Endorsement requires both orgs to approve a chaincode definition before it can be committed — this is what makes the ledger "permissioned" rather than a plain database.
 - **Chaincode** (`chaincode/aiaudit`): a Java smart contract (`AIContract`) exposing three transactions:
